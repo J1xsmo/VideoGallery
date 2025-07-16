@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}{{ video.title }}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ video.title }}</h1>
+    <p class="text-gray-600 text-sm mb-2">Uploaded: {{ video.upload_date }}</p>
+    <p class="text-gray-600 text-sm mb-6" id="codecInfo">Codec: {{ default_codec }}</p>
+
+    <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-xl mb-6">
+        <video id="videoPlayer" class="w-full h-auto max-h-[70vh]" preload="auto">
+            {% if default_file_path %}
+            <source src="{{ url_for('uploaded_file', filename=default_file_path) }}" type="video/mp4">
+            {% endif %}
+            Your browser does not support HTML5 video.
+            <p class="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-75" id="codecWarning" style="display:none;">
+                <span class="text-center p-4">
+                    Warning: Your browser might not support this video codec.
+                    Try selecting another quality if available, or update your browser/OS.
+                </span>
+            </p>
+        </video>
+
+        <div id="customControls" class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black to-transparent flex items-center justify-between opacity-0 transition-opacity duration-300 hover:opacity-100">
+            <div class="flex items-center space-x-4">
+                <button id="playPauseBtn" class="text-white text-3xl focus:outline-none">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 256 256"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.4,223.51A16,16,0,0,1,64,209.62V46.38A16,16,0,0,1,88.4,32.49L232.4,114.49A15.74,15.74,0,0,1,240,128Z"></path></svg>
+                </button>
+                <div class="text-white text-sm">
+                    <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                {% if qualities|length > 1 %}
+                <div class="relative">
+                    <button id="qualityBtn" class="btn-primary flex items-center space-x-2 text-sm px-3 py-1.5 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors duration-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 256 256"><path d="M232,128a8,8,0,0,1-8,8H176a8,8,0,0,1,0-16h48A8,8,0,0,1,232,128ZM192,40a8,8,0,0,0-8,8V80a8,8,0,0,0,16,0V48A8,8,0,0,0,192,40ZM168,128a40,40,0,1,0-40,40A40,40,0,0,0,168,128Zm-24-40a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V96A8,8,0,0,0,144,88ZM112,40a8,8,0,0,0-8,8V80a8,8,0,0,0,16,0V48A8,8,0,0,0,112,40ZM80,128a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V136A8,8,0,0,0,80,128ZM64,40a8,8,0,0,0-8,8V80a8,8,0,0,0,16,0V48A8,8,0,0,0,64,40ZM32,128a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V136A8,8,0,0,0,32,128Z"></path></svg>
+                        <span id="currentQualityLabel">Quality</span>
+                    </button>
+                    <div id="qualityMenu" class="absolute bottom-full right-0 mb-2 w-32 bg-gray-800 rounded-md shadow-lg py-1 hidden">
+                        {% for q in qualities %}
+                        <a href="#" data-quality-path="{{ url_for('uploaded_file', filename=q.file_path) }}" data-quality-label="{{ q.quality_label }}" data-codec="{{ q.codec }}"
+                           class="block px-4 py-2 text-sm text-white hover:bg-gray-700 quality-option">
+                            {{ q.quality_label }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <button id="fullscreenBtn" class="text-white text-2xl focus:outline-none">
+                    <!-- Fullscreen icon (maximize) -->
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-3">Description</h2>
+        <p class="text-gray-700">{{ video.description }}</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const videoPlayer = document.getElementById('videoPlayer');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const currentTimeSpan = document.getElementById('currentTime');
+        const durationSpan = document.getElementById('duration');
+        const qualityBtn = document.getElementById('qualityBtn');
+        const qualityMenu = document.getElementById('qualityMenu');
+        const currentQualityLabel = document.getElementById('currentQualityLabel');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const customControls = document.getElementById('customControls');
+        const codecWarning = document.getElementById('codecWarning');
+        const codecInfoSpan = document.getElementById('codecInfo');
+
+        let isPlaying = false;
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+        }
+
+        function updatePlayPauseIcon() {
+            if (videoPlayer.paused || videoPlayer.ended) {
+                playPauseBtn.innerHTML = '<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 256 256"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.4,223.51A16,16,0,0,1,64,209.62V46.38A16,16,0,0,1,88.4,32.49L232.4,114.49A15.74,15.74,0,0,1,240,128Z"></path></svg>';
+            } else {
+                playPauseBtn.innerHTML = '<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 256 256"><path d="M160,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h104a8,8,0,0,1,8,8Z"></path></svg>';
+            }
+        }
+
+        // Update current time and duration
+        videoPlayer.addEventListener('timeupdate', function() {
+            currentTimeSpan.textContent = formatTime(videoPlayer.currentTime);
+        });
+
+        videoPlayer.addEventListener('loadedmetadata', function() {
+            durationSpan.textContent = formatTime(videoPlayer.duration);
+            // Set initial quality label if available
+            const defaultQualityOption = document.querySelector('.quality-option');
+            if (defaultQualityOption) {
+                currentQualityLabel.textContent = defaultQualityOption.dataset.qualityLabel;
+            }
+        });
+
+        // Play/Pause functionality
+        playPauseBtn.addEventListener('click', function() {
+            if (videoPlayer.paused || videoPlayer.ended) {
+                videoPlayer.play();
+            } else {
+                videoPlayer.pause();
+            }
+        });
+
+        videoPlayer.addEventListener('play', updatePlayPauseIcon);
+        videoPlayer.addEventListener('pause', updatePlayPauseIcon);
+        videoPlayer.addEventListener('ended', updatePlayPauseIcon);
+
+        // Quality selection
+        if (qualityBtn) {
+            qualityBtn.addEventListener('click', function(event) {
+                event.stopPropagation(); // Prevent document click from closing immediately
+                qualityMenu.classList.toggle('hidden');
+            });
+        }
+
+        document.querySelectorAll('.quality-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const newSource = this.dataset.qualityPath;
+                const newCodec = this.dataset.codec;
+                const newLabel = this.dataset.qualityLabel;
+
+                const currentTime = videoPlayer.currentTime;
+                const isPaused = videoPlayer.paused;
+
+                videoPlayer.src = newSource;
+                codecInfoSpan.textContent = `Codec: ${newCodec}`;
+                currentQualityLabel.textContent = newLabel;
+
+                videoPlayer.load();
+                videoPlayer.currentTime = currentTime; // Retain current time
+
+                if (!isPaused) {
+                    videoPlayer.play();
+                }
+
+                qualityMenu.classList.add('hidden'); // Hide menu after selection
+            });
+        });
+
+        // Hide quality menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (qualityMenu && !qualityMenu.contains(event.target) && !qualityBtn.contains(event.target)) {
+                qualityMenu.classList.add('hidden');
+            }
+        });
+
+        // Fullscreen functionality
+        fullscreenBtn.addEventListener('click', function() {
+            if (videoPlayer.requestFullscreen) {
+                videoPlayer.requestFullscreen();
+            } else if (videoPlayer.mozRequestFullScreen) { /* Firefox */
+                videoPlayer.mozRequestFullScreen();
+            } else if (videoPlayer.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                videoPlayer.webkitRequestFullscreen();
+            } else if (videoPlayer.msRequestFullscreen) { /* IE/Edge */
+                videoPlayer.msRequestFullscreen();
+            }
+        });
+
+        // Show/hide controls on mouse move
+        let controlsTimeout;
+        videoPlayer.addEventListener('mousemove', () => {
+            customControls.classList.remove('opacity-0');
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                if (!videoPlayer.paused && !videoPlayer.ended) {
+                    customControls.classList.add('opacity-0');
+                }
+            }, 3000); // Hide after 3 seconds of inactivity
+        });
+
+        customControls.addEventListener('mousemove', () => {
+            customControls.classList.remove('opacity-0');
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                if (!videoPlayer.paused && !videoPlayer.ended) {
+                    customControls.classList.add('opacity-0');
+                }
+            }, 3000); // Hide after 3 seconds of inactivity
+        });
+
+        // Initial state of controls
+        customControls.classList.remove('opacity-0');
+        setTimeout(() => {
+            customControls.classList.add('opacity-0');
+        }, 3000);
+
+        // Check for codec support (basic example, can be more robust)
+        const canPlay = videoPlayer.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+        if (canPlay === 'probably' || canPlay === 'maybe') {
+            codecWarning.style.display = 'none';
+        } else {
+            codecWarning.style.display = 'flex';
+        }
+    });
+</script>
+{% endblock %}

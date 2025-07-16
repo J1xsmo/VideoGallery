@@ -1,0 +1,64 @@
+body {
+    background-color: #1e1e2f;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+}
+
+input[type="file"] {
+    border: 1px solid #ccc;
+    padding: 5px;
+    margin-bottom: 10px;
+    background: #2e2e3e;
+    color: white;
+}
+
+button {
+    background-color: #00bcd4;
+    border: none;
+    padding: 10px 20px;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #0097a7;
+}
+
+.player-container {
+    margin-top: 40px;
+}
+
+.video-wrapper {
+    position: relative;
+    max-width: 800px;
+    margin: auto;
+}
+
+.custom-player {
+    width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+.quality-switcher button {
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 14px;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.quality-switcher button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
