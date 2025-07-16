@@ -27,7 +27,7 @@ To run this project, you need to have the following installed:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/J1xsmo/VideoGallery/tree/master
+    git clone https://github.com/J1xsmo/VideoGallery.git
     cd video-hosting-platform
     ```
 
